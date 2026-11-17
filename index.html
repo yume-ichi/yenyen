@@ -3,9 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>高精度 金額計算＆値段比較</title>
-<link rel="stylesheet" href="https://pyscript.net">
-<script type="module" src="https://pyscript.net"></script>
+<title>高精度 金額計算＆値段比較（JS版）</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:sans-serif;background:#f4f7f9;color:#333;display:flex;justify-content:center;padding:20px}
@@ -30,9 +28,8 @@
   .r-row:last-child{border:none}
   .r-row.tot{border-top:2px solid #cbd5e0;font-size:1.05rem;color:#2b6cb0;margin-top:4px;padding-top:8px}
   .win{background:#ebf8ff;border:1px solid #90cdf4;color:#2b6cb0;padding:10px;border-radius:6px;text-align:center;font-weight:bold;margin-bottom:10px;font-size:.95rem}
-  .err{background:#fed7d7;color:#c53030;padding:8px;border-radius:6px;font-size:.85rem;margin-top:10px}
+  .err{background:#fed7d7;color:#c53030;padding:8px;border-radius:6px;font-size:.85rem;margin-bottom:12px}
   .hidden{display:none}
-  #load{text-align:center;font-size:.8rem;color:#666;margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -40,10 +37,9 @@
   <h1>高精度 金額計算＆値段比較</h1>
   <p class="sub">0.00 〜 100億円（0.01銭単位）まで誤差なしで計算</p>
   <div class="tabs">
-    <button class="tab-btn active" id="tb-comp" py-click="to_comp">値段比較（ペンなど）</button>
-    <button class="tab-btn" id="tb-calc" py-click="to_calc">通常の金額計算</button>
+    <button class="tab-btn active" id="tb-comp" onclick="toTab('comp')">値段比較（ペンなど）</button>
+    <button class="tab-btn" id="tb-calc" onclick="toTab('calc')">通常の金額計算</button>
   </div>
-  <p id="load">Pythonエンジン読み込み中...</p>
   <div id="err" class="err hidden"></div>
 
   <!-- 値段比較タブ -->
@@ -64,13 +60,13 @@
     </div>
     <div class="row">
       <div class="fg"><label>消費税率</label>
-        <select id="ctax"><option value="0.10" selected>10%</option><option value="0.08">8%</option><option value="0.00">0%</option></select>
+        <select id="ctax"><option value="10" selected>10%</option><option value="8">8%</option><option value="0">0%</option></select>
       </div>
       <div class="fg"><label>端数処理</label>
         <select id="crnd"><option value="DOWN" selected>切り捨て</option><option value="HALF_UP">四捨五入</option><option value="UP">切り上げ</option></select>
       </div>
     </div>
-    <button class="btn" py-click="comp_items">値段を比較する</button>
+    <button class="btn" onclick="compItems()">値段を比較する</button>
     <div class="card">
       <div id="win" class="win">-</div>
       <div class="r-row"><span>商品A 合計（1本あたり）</span><strong id="ra">-</strong></div>
@@ -86,13 +82,13 @@
     <div class="row">
       <div class="fg"><label>割引率（%）</label><input id="disc" value="0"></div>
       <div class="fg"><label>消費税率</label>
-        <select id="tax"><option value="0.10" selected>10%</option><option value="0.08">8%</option><option value="0.00">0%</option></select>
+        <select id="tax"><option value="10" selected>10%</option><option value="8">8%</option><option value="0">0%</option></select>
       </div>
       <div class="fg"><label>端数処理</label>
         <select id="rnd"><option value="DOWN" selected>切り捨て</option><option value="HALF_UP">四捨五入</option><option value="UP">切り上げ</option></select>
       </div>
     </div>
-    <button class="btn" py-click="calc_normal">計算する</button>
+    <button class="btn" onclick="calcNormal()">計算する</button>
     <div class="card">
       <div class="r-row"><span>小計（金額1 + 金額2）</span><strong id="rsub">-</strong></div>
       <div class="r-row"><span>割引後金額</span><strong id="rdisc">-</strong></div>
@@ -102,93 +98,135 @@
   </div>
 </div>
 
-<script type="py">
-from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN, ROUND_UP
-from pyscript import document
+<script>
+// 小数文字列をBigIntの分子・分母に分解して誤差を完全に防ぐヘルパー
+function parseDec(str) {
+  const s = (str || "0").trim().replace(/,/g, "");
+  if (!/^-?\d+(\.\d+)?$/.test(s)) throw new Error("数値の形式が不正です");
+  const neg = s.startsWith("-");
+  const [intPart, fracPart = ""] = s.replace("-", "").split(".");
+  const scale = 10n ** BigInt(fracPart.length);
+  const num = BigInt(intPart + fracPart) * (neg ? -1n : 1n);
+  return { num, den: scale };
+}
 
-class Money:
-    def __init__(self, cents: int):
-        self.cents = cents
+// BigIntの有理数除算を端数処理（DOWN / HALF_UP / UP）付きで整数化
+function divRound(num, den, mode) {
+  if (den === 0n) throw new Error("0で割ることはできません");
+  const neg = (num < 0n) !== (den < 0n);
+  const a = num < 0n ? -num : num;
+  const b = den < 0n ? -den : den;
+  let q = a / b;
+  const r = a % b;
+  if (r > 0n) {
+    if (mode === "UP") q += 1n;
+    else if (mode === "HALF_UP" && r * 2n >= b) q += 1n;
+  }
+  return neg ? -q : q;
+}
 
-    @classmethod
-    def from_yen(cls, s: str):
-        c = s.strip().replace(",", "") or "0"
-        return cls(int((Decimal(c) * 100).to_integral_value(ROUND_HALF_UP)))
+class Money {
+  constructor(cents) { this.cents = cents; }
 
-    def __add__(self, o): return Money(self.cents + o.cents)
-    def mul(self, q, r): return Money(int((Decimal(self.cents) * Decimal(q.strip() or "1")).to_integral_value(r)))
-    def div_u(self, q):
-        qv = Decimal(q.strip() or "1")
-        if qv <= 0: raise ValueError("数量は1以上")
-        return Money(int((Decimal(self.cents) / qv).to_integral_value(ROUND_HALF_UP)))
-    def disc(self, p, r):
-        rate = Decimal("1") - Decimal(p.strip() or "0") / Decimal("100")
-        return Money(int((Decimal(self.cents) * rate).to_integral_value(r)))
-    def tax(self, rt, r): return Money(int((Decimal(self.cents) * Decimal(rt)).to_integral_value(r)))
-    def __str__(self):
-        sg = "-" if self.cents < 0 else ""
-        y, s = divmod(abs(self.cents), 100)
-        return f"{sg}{y:,}円{s:02d}銭"
+  static fromYen(str) {
+    const { num, den } = parseDec(str);
+    return new Money(divRound(num * 100n, den, "HALF_UP"));
+  }
 
-R_MAP = {"DOWN": ROUND_DOWN, "HALF_UP": ROUND_HALF_UP, "UP": ROUND_UP}
-def el(i): return document.getElementById(i)
-def err(msg=""):
-    e = el("err")
-    e.innerText = msg
-    e.classList.toggle("hidden", not msg)
+  add(o) { return new Money(this.cents + o.cents); }
 
-def to_comp(e=None):
-    err()
-    el("tb-comp").classList.add("active"); el("tb-calc").classList.remove("active")
-    el("tc-comp").classList.add("active"); el("tc-calc").classList.remove("active")
+  mul(qtyStr, mode) {
+    const { num, den } = parseDec(qtyStr || "1");
+    return new Money(divRound(this.cents * num, den, mode));
+  }
 
-def to_calc(e=None):
-    err()
-    el("tb-calc").classList.add("active"); el("tb-comp").classList.remove("active")
-    el("tc-calc").classList.add("active"); el("tc-comp").classList.remove("active")
+  divUnit(qtyStr) {
+    const { num, den } = parseDec(qtyStr || "1");
+    if (num <= 0n) throw new Error("数量は1以上を指定してください");
+    return new Money(divRound(this.cents * den, num, "HALF_UP"));
+  }
 
-def comp_items(e=None):
-    err()
-    try:
-        r, tr = R_MAP[el("crnd").value], el("ctax").value
-        aq, bq = el("aq").value, el("bq").value
-        asub = Money.from_yen(el("ap").value).mul(aq, r).disc(el("ad").value, r)
-        atot = asub + asub.tax(tr, r)
-        au = atot.div_u(aq)
+  discount(pctStr, mode) {
+    const { num, den } = parseDec(pctStr || "0");
+    // 1 - (pct / 100) = (100*den - num) / (100*den)
+    return new Money(divRound(this.cents * (100n * den - num), 100n * den, mode));
+  }
 
-        bsub = Money.from_yen(el("bp").value).mul(bq, r).disc(el("bd").value, r)
-        btot = bsub + bsub.tax(tr, r)
-        bu = btot.div_u(bq)
+  tax(rateStr, mode) {
+    const { num, den } = parseDec(rateStr || "0");
+    return new Money(divRound(this.cents * num, 100n * den, mode));
+  }
 
-        du = Money(abs(au.cents - bu.cents))
-        if au.cents < bu.cents: w = f"【商品A】が 1本あたり {du} お得！"
-        elif bu.cents < au.cents: w = f"【商品B】が 1本あたり {du} お得！"
-        else: w = "1本あたりの実質単価は同じです"
+  toString() {
+    const sg = this.cents < 0n ? "-" : "";
+    const abs = this.cents < 0n ? -this.cents : this.cents;
+    const y = (abs / 100n).toLocaleString("ja-JP");
+    const s = String(abs % 100n).padStart(2, "0");
+    return `${sg}${y}円${s}銭`;
+  }
+}
 
-        el("win").innerText = w
-        el("ra").innerText = f"{atot}（単価: {au}）"
-        el("rb").innerText = f"{btot}（単価: {bu}）"
-        el("rdiff").innerText = str(Money(abs(atot.cents - btot.cents)))
-    except Exception as ex:
-        err(f"入力エラー: 正しい数値を入力してください ({ex})")
+const el = id => document.getElementById(id);
+function showErr(msg = "") {
+  const e = el("err");
+  e.textContent = msg;
+  e.classList.toggle("hidden", !msg);
+}
 
-def calc_normal(e=None):
-    err()
-    try:
-        r, tr = R_MAP[el("rnd").value], el("tax").value
-        sub = Money.from_yen(el("m1").value) + Money.from_yen(el("m2").value)
-        dsc = sub.disc(el("disc").value, r)
-        tx = dsc.tax(tr, r)
-        el("rsub").innerText = str(sub)
-        el("rdisc").innerText = str(dsc)
-        el("rtax").innerText = str(tx)
-        el("rtot").innerText = str(dsc + tx)
-    except Exception as ex:
-        err(f"入力エラー: 正しい数値を入力してください ({ex})")
+function toTab(name) {
+  showErr();
+  ["comp", "calc"].forEach(t => {
+    el("tb-" + t).classList.toggle("active", t === name);
+    el("tc-" + t).classList.toggle("active", t === name);
+  });
+}
 
-el("load").classList.add("hidden")
-comp_items()
-calc_normal()
+function compItems() {
+  showErr();
+  try {
+    const r = el("crnd").value, tr = el("ctax").value;
+    const aq = el("aq").value, bq = el("bq").value;
+
+    const asub = Money.fromYen(el("ap").value).mul(aq, r).discount(el("ad").value, r);
+    const atot = asub.add(asub.tax(tr, r));
+    const au = atot.divUnit(aq);
+
+    const bsub = Money.fromYen(el("bp").value).mul(bq, r).discount(el("bd").value, r);
+    const btot = bsub.add(bsub.tax(tr, r));
+    const bu = btot.divUnit(bq);
+
+    const du = new Money(au.cents > bu.cents ? au.cents - bu.cents : bu.cents - au.cents);
+    let w = "1本あたりの実質単価は同じです";
+    if (au.cents < bu.cents) w = `【商品A】が 1本あたり ${du} お得！`;
+    else if (bu.cents < au.cents) w = `【商品B】が 1本あたり ${du} お得！`;
+
+    el("win").textContent = w;
+    el("ra").textContent = `${atot}（単価: ${au}）`;
+    el("rb").textContent = `${btot}（単価: ${bu}）`;
+    el("rdiff").textContent = String(new Money(atot.cents > btot.cents ? atot.cents - btot.cents : btot.cents - atot.cents));
+  } catch (e) {
+    showErr("入力エラー: " + e.message);
+  }
+}
+
+function calcNormal() {
+  showErr();
+  try {
+    const r = el("rnd").value, tr = el("tax").value;
+    const sub = Money.fromYen(el("m1").value).add(Money.fromYen(el("m2").value));
+    const dsc = sub.discount(el("disc").value, r);
+    const tx = dsc.tax(tr, r);
+    el("rsub").textContent = String(sub);
+    el("rdisc").textContent = String(dsc);
+    el("rtax").textContent = String(tx);
+    el("rtot").textContent = String(dsc.add(tx));
+  } catch (e) {
+    showErr("入力エラー: " + e.message);
+  }
+}
+
+compItems();
+calcNormal();
 </script>
 </body>
 </html>

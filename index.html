@@ -1,296 +1,194 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高精度 金額計算ツール（1ファイル完結版）</title>
-    <!-- PyScriptの読み込み -->
-    <link rel="stylesheet" href="https://pyscript.net">
-    <script type="module" src="https://pyscript.net"></script>
-
-    <!-- CSSをHTML内に統合 -->
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f4f7f9;
-            color: #333;
-            display: flex;
-            justify-content: center;
-            padding: 30px 15px;
-        }
-
-        .container {
-            background: #ffffff;
-            width: 100%;
-            max-width: 500px;
-            padding: 28px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        }
-
-        h1 {
-            font-size: 1.5rem;
-            text-align: center;
-            color: #1a202c;
-            margin-bottom: 6px;
-        }
-
-        .subtitle {
-            font-size: 0.85rem;
-            text-align: center;
-            color: #718096;
-            margin-bottom: 24px;
-        }
-
-        .form-group {
-            margin-bottom: 16px;
-            width: 100%;
-        }
-
-        .row {
-            display: flex;
-            gap: 12px;
-        }
-
-        label {
-            display: block;
-            font-size: 0.85rem;
-            font-weight: 600;
-            margin-bottom: 6px;
-            color: #4a5568;
-        }
-
-        input, select {
-            width: 100%;
-            padding: 10px 12px;
-            font-size: 1rem;
-            border: 1px solid #cbd5e0;
-            border-radius: 6px;
-            transition: border-color 0.2s;
-        }
-
-        input:focus, select:focus {
-            outline: none;
-            border-color: #3182ce;
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            font-size: 1rem;
-            font-weight: bold;
-            color: #fff;
-            background-color: #3182ce;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-top: 8px;
-            transition: background-color 0.2s;
-        }
-
-        button:hover {
-            background-color: #2b6cb0;
-        }
-
-        .status-msg {
-            text-align: center;
-            font-size: 0.8rem;
-            color: #718096;
-            margin-top: 8px;
-        }
-
-        .error {
-            background-color: #fed7d7;
-            color: #c53030;
-            padding: 10px 12px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            margin-top: 14px;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .result-card {
-            margin-top: 24px;
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 16px;
-        }
-
-        .result-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #edf2f7;
-            font-size: 0.95rem;
-        }
-
-        .result-row:last-child {
-            border-bottom: none;
-        }
-
-        .result-row.total {
-            margin-top: 8px;
-            padding-top: 12px;
-            border-top: 2px solid #cbd5e0;
-            font-size: 1.1rem;
-            color: #2b6cb0;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>高精度 金額計算＆値段比較</title>
+<link rel="stylesheet" href="https://pyscript.net">
+<script type="module" src="https://pyscript.net"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:sans-serif;background:#f4f7f9;color:#333;display:flex;justify-content:center;padding:20px}
+  .container{background:#fff;width:100%;max-width:560px;padding:22px;border-radius:12px;box-shadow:0 4px 15px rgba(0,0,0,.08)}
+  h1{font-size:1.3rem;text-align:center;margin-bottom:4px}
+  .sub{font-size:.8rem;text-align:center;color:#666;margin-bottom:16px}
+  .tabs{display:flex;border-bottom:2px solid #e2e8f0;margin-bottom:16px}
+  .tab-btn{flex:1;padding:10px;background:none;border:none;font-weight:bold;color:#718096;cursor:pointer}
+  .tab-btn.active{color:#3182ce;border-bottom:3px solid #3182ce}
+  .tab-content{display:none}.tab-content.active{display:block}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  .box{background:#f8fafc;border:1px solid #cbd5e0;border-radius:8px;padding:12px}
+  .box h3{font-size:.95rem;margin-bottom:8px;border-bottom:1px solid #e2e8f0;padding-bottom:4px}
+  .fg{margin-bottom:10px;width:100%}
+  .row{display:flex;gap:10px}
+  label{display:block;font-size:.78rem;font-weight:bold;margin-bottom:3px;color:#4a5568}
+  input,select{width:100%;padding:8px;font-size:.95rem;border:1px solid #cbd5e0;border-radius:6px}
+  .btn{width:100%;padding:11px;font-size:1rem;font-weight:bold;color:#fff;background:#3182ce;border:none;border-radius:6px;cursor:pointer;margin-top:4px}
+  .btn:hover{background:#2b6cb0}
+  .card{margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px}
+  .r-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #edf2f7;font-size:.9rem}
+  .r-row:last-child{border:none}
+  .r-row.tot{border-top:2px solid #cbd5e0;font-size:1.05rem;color:#2b6cb0;margin-top:4px;padding-top:8px}
+  .win{background:#ebf8ff;border:1px solid #90cdf4;color:#2b6cb0;padding:10px;border-radius:6px;text-align:center;font-weight:bold;margin-bottom:10px;font-size:.95rem}
+  .err{background:#fed7d7;color:#c53030;padding:8px;border-radius:6px;font-size:.85rem;margin-top:10px}
+  .hidden{display:none}
+  #load{text-align:center;font-size:.8rem;color:#666;margin-bottom:8px}
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>高精度 金額計算機</h1>
-        <p class="subtitle">0.00 〜 100億円（0.01銭単位）まで誤差なしで計算</p>
+<div class="container">
+  <h1>高精度 金額計算＆値段比較</h1>
+  <p class="sub">0.00 〜 100億円（0.01銭単位）まで誤差なしで計算</p>
+  <div class="tabs">
+    <button class="tab-btn active" id="tb-comp" py-click="to_comp">値段比較（ペンなど）</button>
+    <button class="tab-btn" id="tb-calc" py-click="to_calc">通常の金額計算</button>
+  </div>
+  <p id="load">Pythonエンジン読み込み中...</p>
+  <div id="err" class="err hidden"></div>
 
-        <div class="form-group">
-            <label for="amount1">金額 1（円）</label>
-            <input type="text" id="amount1" value="10000000000.00" placeholder="例: 1234.56">
-        </div>
-
-        <div class="form-group">
-            <label for="amount2">追加・減算する金額 2（円）</label>
-            <input type="text" id="amount2" value="123.45" placeholder="例: -100.00">
-        </div>
-
-        <div class="row">
-            <div class="form-group">
-                <label for="discount">割引率（%）</label>
-                <input type="text" id="discount" value="0" placeholder="例: 10">
-            </div>
-            <div class="form-group">
-                <label for="tax">消費税率（%）</label>
-                <select id="tax">
-                    <option value="0.10" selected>10%（標準税率）</option>
-                    <option value="0.08">8%（軽減税率）</option>
-                    <option value="0.00">0%（非課税）</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label for="rounding">端数処理（1銭未満）</label>
-            <select id="rounding">
-                <option value="DOWN" selected>切り捨て（日本の商習慣）</option>
-                <option value="HALF_UP">四捨五入</option>
-                <option value="UP">切り上げ</option>
-            </select>
-        </div>
-
-        <button id="calc-btn" py-click="calculate">計算する</button>
-        <p id="loading-msg" class="status-msg">Pythonエンジンを読み込み中...</p>
-
-        <div id="error-box" class="error hidden"></div>
-
-        <div class="result-card">
-            <div class="result-row">
-                <span>小計（金額1 + 金額2）</span>
-                <strong id="res-subtotal">-</strong>
-            </div>
-            <div class="result-row">
-                <span>割引後金額</span>
-                <strong id="res-discounted">-</strong>
-            </div>
-            <div class="result-row">
-                <span>消費税額</span>
-                <strong id="res-tax">-</strong>
-            </div>
-            <div class="result-row total">
-                <span>税込合計</span>
-                <strong id="res-total">-</strong>
-            </div>
-        </div>
+  <!-- 値段比較タブ -->
+  <div id="tc-comp" class="tab-content active">
+    <div class="grid">
+      <div class="box">
+        <h3>商品 A（ペンA）</h3>
+        <div class="fg"><label>単価（円）</label><input id="ap" value="120.00"></div>
+        <div class="fg"><label>数量（本）</label><input id="aq" value="1"></div>
+        <div class="fg"><label>割引率（%）</label><input id="ad" value="0"></div>
+      </div>
+      <div class="box">
+        <h3>商品 B（ペンB）</h3>
+        <div class="fg"><label>単価（円）</label><input id="bp" value="150.00"></div>
+        <div class="fg"><label>数量（本）</label><input id="bq" value="1"></div>
+        <div class="fg"><label>割引率（%）</label><input id="bd" value="0"></div>
+      </div>
     </div>
+    <div class="row">
+      <div class="fg"><label>消費税率</label>
+        <select id="ctax"><option value="0.10" selected>10%</option><option value="0.08">8%</option><option value="0.00">0%</option></select>
+      </div>
+      <div class="fg"><label>端数処理</label>
+        <select id="crnd"><option value="DOWN" selected>切り捨て</option><option value="HALF_UP">四捨五入</option><option value="UP">切り上げ</option></select>
+      </div>
+    </div>
+    <button class="btn" py-click="comp_items">値段を比較する</button>
+    <div class="card">
+      <div id="win" class="win">-</div>
+      <div class="r-row"><span>商品A 合計（1本あたり）</span><strong id="ra">-</strong></div>
+      <div class="r-row"><span>商品B 合計（1本あたり）</span><strong id="rb">-</strong></div>
+      <div class="r-row tot"><span>合計金額の差額</span><strong id="rdiff">-</strong></div>
+    </div>
+  </div>
 
-    <!-- PythonコードをHTML内に直接記述 -->
-    <script type="py">
-        from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN, ROUND_UP, InvalidOperation
-        from pyscript import document
+  <!-- 通常計算タブ -->
+  <div id="tc-calc" class="tab-content">
+    <div class="fg"><label>金額 1（円）</label><input id="m1" value="10000000000.00"></div>
+    <div class="fg"><label>追加・減算する金額 2（円）</label><input id="m2" value="123.45"></div>
+    <div class="row">
+      <div class="fg"><label>割引率（%）</label><input id="disc" value="0"></div>
+      <div class="fg"><label>消費税率</label>
+        <select id="tax"><option value="0.10" selected>10%</option><option value="0.08">8%</option><option value="0.00">0%</option></select>
+      </div>
+      <div class="fg"><label>端数処理</label>
+        <select id="rnd"><option value="DOWN" selected>切り捨て</option><option value="HALF_UP">四捨五入</option><option value="UP">切り上げ</option></select>
+      </div>
+    </div>
+    <button class="btn" py-click="calc_normal">計算する</button>
+    <div class="card">
+      <div class="r-row"><span>小計（金額1 + 金額2）</span><strong id="rsub">-</strong></div>
+      <div class="r-row"><span>割引後金額</span><strong id="rdisc">-</strong></div>
+      <div class="r-row"><span>消費税額</span><strong id="rtax">-</strong></div>
+      <div class="r-row tot"><span>税込合計</span><strong id="rtot">-</strong></div>
+    </div>
+  </div>
+</div>
 
-        class Money:
-            """1円＝100銭の整数として金額を正確に管理するクラス"""
+<script type="py">
+from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN, ROUND_UP
+from pyscript import document
 
-            def __init__(self, cents: int):
-                self.cents = cents
+class Money:
+    def __init__(self, cents: int):
+        self.cents = cents
 
-            @classmethod
-            def from_yen(cls, amount: str) -> "Money":
-                cleaned = amount.strip().replace(",", "")
-                if not cleaned:
-                    return cls(0)
-                d = Decimal(cleaned)
-                cents = int((d * 100).to_integral_value(rounding=ROUND_HALF_UP))
-                return cls(cents)
+    @classmethod
+    def from_yen(cls, s: str):
+        c = s.strip().replace(",", "") or "0"
+        return cls(int((Decimal(c) * 100).to_integral_value(ROUND_HALF_UP)))
 
-            def __add__(self, other: "Money") -> "Money":
-                return Money(self.cents + other.cents)
+    def __add__(self, o): return Money(self.cents + o.cents)
+    def mul(self, q, r): return Money(int((Decimal(self.cents) * Decimal(q.strip() or "1")).to_integral_value(r)))
+    def div_u(self, q):
+        qv = Decimal(q.strip() or "1")
+        if qv <= 0: raise ValueError("数量は1以上")
+        return Money(int((Decimal(self.cents) / qv).to_integral_value(ROUND_HALF_UP)))
+    def disc(self, p, r):
+        rate = Decimal("1") - Decimal(p.strip() or "0") / Decimal("100")
+        return Money(int((Decimal(self.cents) * rate).to_integral_value(r)))
+    def tax(self, rt, r): return Money(int((Decimal(self.cents) * Decimal(rt)).to_integral_value(r)))
+    def __str__(self):
+        sg = "-" if self.cents < 0 else ""
+        y, s = divmod(abs(self.cents), 100)
+        return f"{sg}{y:,}円{s:02d}銭"
 
-            def calc_tax(self, rate: str, rounding=ROUND_DOWN) -> "Money":
-                tax_cents = (Decimal(self.cents) * Decimal(rate)).to_integral_value(rounding=rounding)
-                return Money(int(tax_cents))
+R_MAP = {"DOWN": ROUND_DOWN, "HALF_UP": ROUND_HALF_UP, "UP": ROUND_UP}
+def el(i): return document.getElementById(i)
+def err(msg=""):
+    e = el("err")
+    e.innerText = msg
+    e.classList.toggle("hidden", not msg)
 
-            def with_tax(self, rate: str, rounding=ROUND_DOWN) -> "Money":
-                return self + self.calc_tax(rate=rate, rounding=rounding)
+def to_comp(e=None):
+    err()
+    el("tb-comp").classList.add("active"); el("tb-calc").classList.remove("active")
+    el("tc-comp").classList.add("active"); el("tc-calc").classList.remove("active")
 
-            def discount(self, percent: str, rounding=ROUND_DOWN) -> "Money":
-                cleaned = percent.strip() or "0"
-                rate = Decimal("1") - (Decimal(cleaned) / Decimal("100"))
-                new_cents = (Decimal(self.cents) * rate).to_integral_value(rounding=rounding)
-                return Money(int(new_cents))
+def to_calc(e=None):
+    err()
+    el("tb-calc").classList.add("active"); el("tb-comp").classList.remove("active")
+    el("tc-calc").classList.add("active"); el("tc-comp").classList.remove("active")
 
-            def __str__(self) -> str:
-                sign = "-" if self.cents < 0 else ""
-                yen, sen = divmod(abs(self.cents), 100)
-                return f"{sign}{yen:,}円{sen:02d}銭"
+def comp_items(e=None):
+    err()
+    try:
+        r, tr = R_MAP[el("crnd").value], el("ctax").value
+        aq, bq = el("aq").value, el("bq").value
+        asub = Money.from_yen(el("ap").value).mul(aq, r).disc(el("ad").value, r)
+        atot = asub + asub.tax(tr, r)
+        au = atot.div_u(aq)
 
+        bsub = Money.from_yen(el("bp").value).mul(bq, r).disc(el("bd").value, r)
+        btot = bsub + bsub.tax(tr, r)
+        bu = btot.div_u(bq)
 
-        def calculate(event=None):
-            error_box = document.getElementById("error-box")
-            error_box.classList.add("hidden")
+        du = Money(abs(au.cents - bu.cents))
+        if au.cents < bu.cents: w = f"【商品A】が 1本あたり {du} お得！"
+        elif bu.cents < au.cents: w = f"【商品B】が 1本あたり {du} お得！"
+        else: w = "1本あたりの実質単価は同じです"
 
-            try:
-                val1 = document.getElementById("amount1").value
-                val2 = document.getElementById("amount2").value
-                disc_val = document.getElementById("discount").value
-                tax_rate = document.getElementById("tax").value
-                round_mode = document.getElementById("rounding").value
+        el("win").innerText = w
+        el("ra").innerText = f"{atot}（単価: {au}）"
+        el("rb").innerText = f"{btot}（単価: {bu}）"
+        el("rdiff").innerText = str(Money(abs(atot.cents - btot.cents)))
+    except Exception as ex:
+        err(f"入力エラー: 正しい数値を入力してください ({ex})")
 
-                rounding_map = {
-                    "DOWN": ROUND_DOWN,
-                    "HALF_UP": ROUND_HALF_UP,
-                    "UP": ROUND_UP,
-                }
-                rounding = rounding_map[round_mode]
+def calc_normal(e=None):
+    err()
+    try:
+        r, tr = R_MAP[el("rnd").value], el("tax").value
+        sub = Money.from_yen(el("m1").value) + Money.from_yen(el("m2").value)
+        dsc = sub.disc(el("disc").value, r)
+        tx = dsc.tax(tr, r)
+        el("rsub").innerText = str(sub)
+        el("rdisc").innerText = str(dsc)
+        el("rtax").innerText = str(tx)
+        el("rtot").innerText = str(dsc + tx)
+    except Exception as ex:
+        err(f"入力エラー: 正しい数値を入力してください ({ex})")
 
-                m1 = Money.from_yen(val1)
-                m2 = Money.from_yen(val2)
-                subtotal = m1 + m2
-                discounted = subtotal.discount(disc_val, rounding=rounding)
-                tax = discounted.calc_tax(tax_rate, rounding=rounding)
-                total = discounted.with_tax(tax_rate, rounding=rounding)
-
-                document.getElementById("res-subtotal").innerText = str(subtotal)
-                document.getElementById("res-discounted").innerText = str(discounted)
-                document.getElementById("res-tax").innerText = str(tax)
-                document.getElementById("res-total").innerText = str(total)
-
-            except (InvalidOperation, ValueError):
-                error_box.innerText = "正しい数値を入力してください（例: 1234.56）"
-                error_box.classList.remove("hidden")
-
-        # 読み込み完了時の処理
-        document.getElementById("loading-msg").classList.add("hidden")
-        calculate()
-    </script>
+el("load").classList.add("hidden")
+comp_items()
+calc_normal()
+</script>
 </body>
 </html>

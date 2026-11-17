@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高精度 金額計算ツール（1ファイル完結版）</title>
+    <!-- PyScriptの読み込み -->
+    <link rel="stylesheet" href="https://pyscript.net">
+    <script type="module" src="https://pyscript.net"></script>
+
+    <!-- CSSをHTML内に統合 -->
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f7f9;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            padding: 30px 15px;
+        }
+
+        .container {
+            background: #ffffff;
+            width: 100%;
+            max-width: 500px;
+            padding: 28px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            text-align: center;
+            color: #1a202c;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            text-align: center;
+            color: #718096;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+            width: 100%;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #4a5568;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 1rem;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3182ce;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #fff;
+            background-color: #3182ce;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #2b6cb0;
+        }
+
+        .status-msg {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #718096;
+            margin-top: 8px;
+        }
+
+        .error {
+            background-color: #fed7d7;
+            color: #c53030;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            margin-top: 14px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .result-card {
+            margin-top: 24px;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #edf2f7;
+            font-size: 0.95rem;
+        }
+
+        .result-row:last-child {
+            border-bottom: none;
+        }
+
+        .result-row.total {
+            margin-top: 8px;
+            padding-top: 12px;
+            border-top: 2px solid #cbd5e0;
+            font-size: 1.1rem;
+            color: #2b6cb0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>高精度 金額計算機</h1>
+        <p class="subtitle">0.00 〜 100億円（0.01銭単位）まで誤差なしで計算</p>
+
+        <div class="form-group">
+            <label for="amount1">金額 1（円）</label>
+            <input type="text" id="amount1" value="10000000000.00" placeholder="例: 1234.56">
+        </div>
+
+        <div class="form-group">
+            <label for="amount2">追加・減算する金額 2（円）</label>
+            <input type="text" id="amount2" value="123.45" placeholder="例: -100.00">
+        </div>
+
+        <div class="row">
+            <div class="form-group">
+                <label for="discount">割引率（%）</label>
+                <input type="text" id="discount" value="0" placeholder="例: 10">
+            </div>
+            <div class="form-group">
+                <label for="tax">消費税率（%）</label>
+                <select id="tax">
+                    <option value="0.10" selected>10%（標準税率）</option>
+                    <option value="0.08">8%（軽減税率）</option>
+                    <option value="0.00">0%（非課税）</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="rounding">端数処理（1銭未満）</label>
+            <select id="rounding">
+                <option value="DOWN" selected>切り捨て（日本の商習慣）</option>
+                <option value="HALF_UP">四捨五入</option>
+                <option value="UP">切り上げ</option>
+            </select>
+        </div>
+
+        <button id="calc-btn" py-click="calculate">計算する</button>
+        <p id="loading-msg" class="status-msg">Pythonエンジンを読み込み中...</p>
+
+        <div id="error-box" class="error hidden"></div>
+
+        <div class="result-card">
+            <div class="result-row">
+                <span>小計（金額1 + 金額2）</span>
+                <strong id="res-subtotal">-</strong>
+            </div>
+            <div class="result-row">
+                <span>割引後金額</span>
+                <strong id="res-discounted">-</strong>
+            </div>
+            <div class="result-row">
+                <span>消費税額</span>
+                <strong id="res-tax">-</strong>
+            </div>
+            <div class="result-row total">
+                <span>税込合計</span>
+                <strong id="res-total">-</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- PythonコードをHTML内に直接記述 -->
+    <script type="py">
+        from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN, ROUND_UP, InvalidOperation
+        from pyscript import document
+
+        class Money:
+            """1円＝100銭の整数として金額を正確に管理するクラス"""
+
+            def __init__(self, cents: int):
+                self.cents = cents
+
+            @classmethod
+            def from_yen(cls, amount: str) -> "Money":
+                cleaned = amount.strip().replace(",", "")
+                if not cleaned:
+                    return cls(0)
+                d = Decimal(cleaned)
+                cents = int((d * 100).to_integral_value(rounding=ROUND_HALF_UP))
+                return cls(cents)
+
+            def __add__(self, other: "Money") -> "Money":
+                return Money(self.cents + other.cents)
+
+            def calc_tax(self, rate: str, rounding=ROUND_DOWN) -> "Money":
+                tax_cents = (Decimal(self.cents) * Decimal(rate)).to_integral_value(rounding=rounding)
+                return Money(int(tax_cents))
+
+            def with_tax(self, rate: str, rounding=ROUND_DOWN) -> "Money":
+                return self + self.calc_tax(rate=rate, rounding=rounding)
+
+            def discount(self, percent: str, rounding=ROUND_DOWN) -> "Money":
+                cleaned = percent.strip() or "0"
+                rate = Decimal("1") - (Decimal(cleaned) / Decimal("100"))
+                new_cents = (Decimal(self.cents) * rate).to_integral_value(rounding=rounding)
+                return Money(int(new_cents))
+
+            def __str__(self) -> str:
+                sign = "-" if self.cents < 0 else ""
+                yen, sen = divmod(abs(self.cents), 100)
+                return f"{sign}{yen:,}円{sen:02d}銭"
+
+
+        def calculate(event=None):
+            error_box = document.getElementById("error-box")
+            error_box.classList.add("hidden")
+
+            try:
+                val1 = document.getElementById("amount1").value
+                val2 = document.getElementById("amount2").value
+                disc_val = document.getElementById("discount").value
+                tax_rate = document.getElementById("tax").value
+                round_mode = document.getElementById("rounding").value
+
+                rounding_map = {
+                    "DOWN": ROUND_DOWN,
+                    "HALF_UP": ROUND_HALF_UP,
+                    "UP": ROUND_UP,
+                }
+                rounding = rounding_map[round_mode]
+
+                m1 = Money.from_yen(val1)
+                m2 = Money.from_yen(val2)
+                subtotal = m1 + m2
+                discounted = subtotal.discount(disc_val, rounding=rounding)
+                tax = discounted.calc_tax(tax_rate, rounding=rounding)
+                total = discounted.with_tax(tax_rate, rounding=rounding)
+
+                document.getElementById("res-subtotal").innerText = str(subtotal)
+                document.getElementById("res-discounted").innerText = str(discounted)
+                document.getElementById("res-tax").innerText = str(tax)
+                document.getElementById("res-total").innerText = str(total)
+
+            except (InvalidOperation, ValueError):
+                error_box.innerText = "正しい数値を入力してください（例: 1234.56）"
+                error_box.classList.remove("hidden")
+
+        # 読み込み完了時の処理
+        document.getElementById("loading-msg").classList.add("hidden")
+        calculate()
+    </script>
+</body>
+</html>
